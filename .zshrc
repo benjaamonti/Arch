@@ -1,4 +1,4 @@
-# s4vitar config
+# benjaa config
 
 # Fix the Java Problem
 export _JAVA_AWT_WM_NONREPARENTING=1
