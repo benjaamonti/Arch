@@ -56,6 +56,18 @@ run_as_user() {
     sudo -u "$USERNAME" "$@"
 }
 
+# Temporarily grant the user passwordless sudo for this script's lifetime
+_SUDOERS_FILE="/etc/sudoers.d/setup-tmp-${USERNAME}"
+setup_nopasswd() {
+    echo "${USERNAME} ALL=(ALL) NOPASSWD: ALL" > "$_SUDOERS_FILE"
+    chmod 0440 "$_SUDOERS_FILE"
+}
+teardown_nopasswd() {
+    rm -f "$_SUDOERS_FILE"
+}
+# Always remove the rule on exit, even if the script crashes
+trap teardown_nopasswd EXIT
+
 # Require root
 if [[ "$EUID" -ne 0 ]]; then
     error "Please run this script as root (e.g. sudo ./setup.sh)"
@@ -74,6 +86,7 @@ fi
 USERNAME="$SUDO_USER"
 USER_HOME="$(getent passwd "$USERNAME" | cut -d: -f6)"
 info "Detected user: ${USERNAME} (home: ${USER_HOME})"
+setup_nopasswd
 
 # Packages to install via pacman
 PACKAGES_INSTALL=(
@@ -248,7 +261,34 @@ else
     warn "No listed packages were installed — nothing to remove."
 fi
 
-# ── Pacman package installation ───────────────────────────────────────────────
+# ── Flatpak removal ───────────────────────────────────────────────────────────
+echo
+info "═══ Removing Flatpaks ═══"
+
+FLATPAKS_REMOVE=(
+    org.gnome.Amberol
+    io.github.celluloid_player.Celluloid
+    # Add more Flatpak app IDs here...
+)
+
+if ! command -v flatpak &>/dev/null; then
+    warn "flatpak is not installed — skipping Flatpak removal."
+else
+    for app in "${FLATPAKS_REMOVE[@]}"; do
+        if flatpak info "$app" &>/dev/null; then
+            info "Removing Flatpak: $app"
+            if ! flatpak uninstall --noninteractive "$app"; then
+                ask_on_error "Failed to remove Flatpak '$app'."
+            else
+                success "Removed Flatpak: $app"
+            fi
+        else
+            warn "Flatpak '$app' is not installed — skipping."
+        fi
+    done
+fi
+
+
 echo
 info "═══ Installing pacman packages ═══"
 
@@ -295,18 +335,27 @@ else
     YAY_BUILD_DIR="/tmp/yay-build"
     rm -rf "$YAY_BUILD_DIR"
 
+    # Allow passwordless sudo so makepkg doesn't prompt during build
+    SUDOERS_TMP="/etc/sudoers.d/99-setup-nopwd"
+    echo "${USERNAME} ALL=(ALL) NOPASSWD: ALL" > "$SUDOERS_TMP"
+    chmod 440 "$SUDOERS_TMP"
+
     info "Cloning yay from AUR..."
     if ! run_as_user git clone https://aur.archlinux.org/yay.git "$YAY_BUILD_DIR"; then
+        rm -f "$SUDOERS_TMP"
         ask_on_error "Failed to clone yay repository."
     else
         info "Building and installing yay (this may take a moment)..."
         if ! run_as_user bash -c "cd '${YAY_BUILD_DIR}' && makepkg -si --noconfirm"; then
+            rm -f "$SUDOERS_TMP"
             ask_on_error "Failed to build/install yay."
         else
             success "yay installed successfully."
             rm -rf "$YAY_BUILD_DIR"
         fi
     fi
+
+    rm -f "$SUDOERS_TMP"
 fi
 
 # ── AUR package installation ──────────────────────────────────────────────────
@@ -316,6 +365,11 @@ info "═══ Installing AUR packages ═══"
 if ! command -v yay &>/dev/null; then
     ask_on_error "yay is not available — cannot install AUR packages."
 else
+    # Allow the user to sudo without password temporarily so yay doesn't prompt
+    SUDOERS_TMP="/etc/sudoers.d/99-setup-nopwd"
+    echo "${USERNAME} ALL=(ALL) NOPASSWD: ALL" > "$SUDOERS_TMP"
+    chmod 440 "$SUDOERS_TMP"
+
     _total=${#PACKAGES_AUR[@]}
     _count=0
     for pkg in "${PACKAGES_AUR[@]}"; do
@@ -331,6 +385,10 @@ else
             fi
         fi
     done
+
+    # Remove the temporary NOPASSWD rule
+    rm -f "$SUDOERS_TMP"
+    success "Sudo password requirement restored."
 fi
 
 # ── Hide unwanted desktop entries ─────────────────────────────────────────────
@@ -345,6 +403,7 @@ HIDDEN_ENTRIES=(
     /usr/share/applications/qvidcap.desktop
     /usr/share/applications/btop.desktop
     /usr/share/applications/micro.desktop
+    /usr/share/applications/cmake-gui.desktop
 )
 
 for entry in "${HIDDEN_ENTRIES[@]}"; do
