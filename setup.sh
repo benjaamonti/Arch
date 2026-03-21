@@ -56,18 +56,6 @@ run_as_user() {
     sudo -u "$USERNAME" "$@"
 }
 
-# Temporarily grant the user passwordless sudo for this script's lifetime
-_SUDOERS_FILE="/etc/sudoers.d/setup-tmp-${USERNAME}"
-setup_nopasswd() {
-    echo "${USERNAME} ALL=(ALL) NOPASSWD: ALL" > "$_SUDOERS_FILE"
-    chmod 0440 "$_SUDOERS_FILE"
-}
-teardown_nopasswd() {
-    rm -f "$_SUDOERS_FILE"
-}
-# Always remove the rule on exit, even if the script crashes
-trap teardown_nopasswd EXIT
-
 # Require root
 if [[ "$EUID" -ne 0 ]]; then
     error "Please run this script as root (e.g. sudo ./setup.sh)"
@@ -78,8 +66,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 USERNAME=""
 USER_HOME=""
 
-# ── Configuration ─────────────────────────────────────────────────────────────
-
 # Detect the non-root user who invoked sudo
 if [[ -z "${SUDO_USER:-}" || "${SUDO_USER:-}" == "root" ]]; then
     error "Could not detect a non-root user. Please run with: sudo ./setup.sh"
@@ -88,7 +74,8 @@ fi
 USERNAME="${SUDO_USER}"
 USER_HOME="$(getent passwd "$USERNAME" | cut -d: -f6)"
 info "Detected user: ${USERNAME} (home: ${USER_HOME})"
-setup_nopasswd
+
+# ── Configuration ─────────────────────────────────────────────────────────────
 
 # Packages to install via pacman
 PACKAGES_INSTALL=(
