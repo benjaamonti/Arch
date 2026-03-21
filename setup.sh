@@ -204,25 +204,36 @@ fi
 # ── Package removal ───────────────────────────────────────────────────────────
 echo
 info "═══ Removing packages ═══"
+
+_to_remove=()
 _total=${#PACKAGES_REMOVE[@]}
 _count=0
 for pkg in "${PACKAGES_REMOVE[@]}"; do
     (( _count++ )) || true
     draw_progress "$_count" "$_total" "$pkg"
     if pacman -Qi "$pkg" &>/dev/null; then
-        if ! pacman -Rns --noconfirm "$pkg" &>/dev/null; then
-            ask_on_error "Failed to remove '$pkg'."
-        else
-            success "Removed: $pkg"
-        fi
+        _to_remove+=("$pkg")
     else
         warn "'$pkg' is not installed — skipping."
     fi
 done
 
+if [[ ${#_to_remove[@]} -gt 0 ]]; then
+    info "Removing ${#_to_remove[@]} package(s) in one pass..."
+    if ! pacman -Rns --noconfirm "${_to_remove[@]}"; then
+        ask_on_error "Failed to remove one or more packages."
+    else
+        success "Removed: ${_to_remove[*]}"
+    fi
+else
+    warn "No packages to remove."
+fi
+
 # ── Pacman package installation ───────────────────────────────────────────────
 echo
 info "═══ Installing pacman packages ═══"
+
+_to_install=()
 _total=${#PACKAGES_INSTALL[@]}
 _count=0
 for pkg in "${PACKAGES_INSTALL[@]}"; do
@@ -233,13 +244,20 @@ for pkg in "${PACKAGES_INSTALL[@]}"; do
     elif ! pkg_exists_in_repos "$pkg"; then
         ask_on_error "Package '$pkg' not found in repos — skipping."
     else
-        if ! pacman -S --noconfirm "$pkg" &>/dev/null; then
-            ask_on_error "Failed to install '$pkg'."
-        else
-            success "Installed: $pkg"
-        fi
+        _to_install+=("$pkg")
     fi
 done
+
+if [[ ${#_to_install[@]} -gt 0 ]]; then
+    info "Installing ${#_to_install[@]} package(s) in one pass..."
+    if ! pacman -S --noconfirm "${_to_install[@]}"; then
+        ask_on_error "Failed to install one or more packages."
+    else
+        success "Installed: ${_to_install[*]}"
+    fi
+else
+    warn "No packages to install."
+fi
 
 # ── Install yay ───────────────────────────────────────────────────────────────
 echo
