@@ -216,7 +216,7 @@ fi
 
 # ── Sync & upgrade ────────────────────────────────────────────────────────────
 echo
-info "═══ Syncing and upgrading system (pacman -Syyu) ═══"
+info "═══ Syncing and upgrading system ═══"
 if ! pacman -Syyu --noconfirm; then
     ask_on_error "System upgrade failed."
 else
@@ -253,57 +253,6 @@ if [[ ${#_to_remove[@]} -gt 0 ]]; then
     fi
 else
     warn "No listed packages were installed — nothing to remove."
-fi
-
-# ── Flatpak removal ───────────────────────────────────────────────────────────
-echo
-info "═══ Removing Flatpaks ═══"
-
-FLATPAKS_REMOVE=(
-    org.gnome.Amberol
-    io.github.celluloid_player.Celluloid
-    # Add more Flatpak app IDs here...
-)
-
-if ! command -v flatpak &>/dev/null; then
-    warn "flatpak is not installed — skipping Flatpak removal."
-else
-    # Also catch any flatpak whose name contains these strings (case-insensitive)
-    FLATPAK_NAME_PATTERNS=( "amberol" "celluloid" )
-
-    # Build full list of installed flatpak IDs
-    _installed_flatpaks=$(flatpak list --app --columns=application 2>/dev/null || true)
-
-    _all_to_remove=()
-
-    # Match by exact app ID
-    for app in "${FLATPAKS_REMOVE[@]}"; do
-        if echo "$_installed_flatpaks" | grep -qi "^${app}$"; then
-            _all_to_remove+=("$app")
-        else
-            warn "Flatpak '$app' not found — skipping."
-        fi
-    done
-
-    # Match by name pattern (catches renamed or differently versioned IDs)
-    for pattern in "${FLATPAK_NAME_PATTERNS[@]}"; do
-        while IFS= read -r app_id; do
-            if [[ -n "$app_id" ]] && ! printf '%s\n' "${_all_to_remove[@]}" | grep -q "^${app_id}$"; then
-                _all_to_remove+=("$app_id")
-            fi
-        done < <(echo "$_installed_flatpaks" | grep -i "$pattern" || true)
-    done
-
-    if [[ ${#_all_to_remove[@]} -gt 0 ]]; then
-        info "Removing Flatpaks: ${_all_to_remove[*]}"
-        if ! flatpak uninstall --noninteractive "${_all_to_remove[@]}"; then
-            ask_on_error "Failed to remove one or more Flatpaks."
-        else
-            success "Flatpaks removed successfully."
-        fi
-    else
-        warn "No listed Flatpaks were installed — nothing to remove."
-    fi
 fi
 
 
@@ -588,4 +537,4 @@ fi
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo
 success "═══ Setup complete! ═══"
-info "Log out and back in (or reboot) for shell changes to take effect."
+info "Reboot for shell changes and Flatpak installation to take effect."
