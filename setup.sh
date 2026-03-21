@@ -75,15 +75,17 @@ if [[ "$EUID" -ne 0 ]]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+USERNAME=""
+USER_HOME=""
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
 # Detect the non-root user who invoked sudo
-if [[ -z "${SUDO_USER:-}" || "$SUDO_USER" == "root" ]]; then
+if [[ -z "${SUDO_USER:-}" || "${SUDO_USER:-}" == "root" ]]; then
     error "Could not detect a non-root user. Please run with: sudo ./setup.sh"
     exit 1
 fi
-USERNAME="$SUDO_USER"
+USERNAME="${SUDO_USER}"
 USER_HOME="$(getent passwd "$USERNAME" | cut -d: -f6)"
 info "Detected user: ${USERNAME} (home: ${USER_HOME})"
 setup_nopasswd
