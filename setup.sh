@@ -3,7 +3,7 @@
 #  Arch Linux Post-Install Setup Script
 # =============================================================================
 
-set -euo pipefail
+set -uo pipefail
 
 # ── Colors ────────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
@@ -168,28 +168,32 @@ fi
 # ── BlackArch repository ──────────────────────────────────────────────────────
 echo
 info "═══ BlackArch repository ═══"
-read -rp "$(echo -e "${YELLOW}Do you want to add the BlackArch repository? [Y/n]${RESET} ")" _blackarch_ans
-_blackarch_ans="${_blackarch_ans:-Y}"
-
-if [[ "$_blackarch_ans" =~ ^[Yy]$ ]]; then
-    STRAP_URL="https://blackarch.org/strap.sh"
-    STRAP_PATH="/tmp/strap.sh"
-
-    info "Downloading BlackArch strap.sh..."
-    if ! curl -fsSL "$STRAP_URL" -o "$STRAP_PATH"; then
-        ask_on_error "Failed to download strap.sh from blackarch.org."
-    else
-        chmod +x "$STRAP_PATH"
-        info "Running strap.sh (this will set up the BlackArch repo and keyring)..."
-        if ! bash "$STRAP_PATH"; then
-            ask_on_error "strap.sh encountered an error."
-        else
-            success "BlackArch repository added successfully."
-            rm -f "$STRAP_PATH"
-        fi
-    fi
+if grep -q '^\[blackarch\]' /etc/pacman.conf; then
+    warn "BlackArch repository is already configured — skipping."
 else
-    warn "Skipping BlackArch repository setup."
+    read -rp "$(echo -e "${YELLOW}Do you want to add the BlackArch repository? [Y/n]${RESET} ")" _blackarch_ans
+    _blackarch_ans="${_blackarch_ans:-Y}"
+
+    if [[ "$_blackarch_ans" =~ ^[Yy]$ ]]; then
+        STRAP_URL="https://blackarch.org/strap.sh"
+        STRAP_PATH="/tmp/strap.sh"
+
+        info "Downloading BlackArch strap.sh..."
+        if ! curl -fsSL "$STRAP_URL" -o "$STRAP_PATH"; then
+            ask_on_error "Failed to download strap.sh from blackarch.org."
+        else
+            chmod +x "$STRAP_PATH"
+            info "Running strap.sh (this will set up the BlackArch repo and keyring)..."
+            if ! bash "$STRAP_PATH"; then
+                ask_on_error "strap.sh encountered an error."
+            else
+                success "BlackArch repository added successfully."
+                rm -f "$STRAP_PATH"
+            fi
+        fi
+    else
+        warn "Skipping BlackArch repository setup."
+    fi
 fi
 
 # ── Sync & upgrade ────────────────────────────────────────────────────────────
@@ -208,25 +212,29 @@ info "═══ Removing packages ═══"
 _to_remove=()
 _total=${#PACKAGES_REMOVE[@]}
 _count=0
+info "Checking which packages are installed..."
 for pkg in "${PACKAGES_REMOVE[@]}"; do
-    (( _count++ )) || true
+    _count=$(( _count + 1 ))
     draw_progress "$_count" "$_total" "$pkg"
     if pacman -Qi "$pkg" &>/dev/null; then
         _to_remove+=("$pkg")
-    else
-        warn "'$pkg' is not installed — skipping."
     fi
 done
+echo  # newline after progress bar
 
 if [[ ${#_to_remove[@]} -gt 0 ]]; then
-    info "Removing ${#_to_remove[@]} package(s) in one pass..."
-    if ! pacman -Rns --noconfirm "${_to_remove[@]}"; then
+    info "Packages to remove (${#_to_remove[@]}):"
+    for pkg in "${_to_remove[@]}"; do
+        echo "    - $pkg"
+    done
+    echo
+    if ! pacman -Rdd --noconfirm "${_to_remove[@]}"; then
         ask_on_error "Failed to remove one or more packages."
     else
-        success "Removed: ${_to_remove[*]}"
+        success "All packages removed successfully."
     fi
 else
-    warn "No packages to remove."
+    warn "No listed packages were installed — nothing to remove."
 fi
 
 # ── Pacman package installation ───────────────────────────────────────────────
@@ -236,24 +244,31 @@ info "═══ Installing pacman packages ═══"
 _to_install=()
 _total=${#PACKAGES_INSTALL[@]}
 _count=0
+info "Checking which packages need to be installed..."
 for pkg in "${PACKAGES_INSTALL[@]}"; do
-    (( _count++ )) || true
+    _count=$(( _count + 1 ))
     draw_progress "$_count" "$_total" "$pkg"
     if pacman -Qi "$pkg" &>/dev/null; then
-        warn "'$pkg' is already installed — skipping."
+        : # already installed, skip silently
     elif ! pkg_exists_in_repos "$pkg"; then
-        ask_on_error "Package '$pkg' not found in repos — skipping."
+        : # not in repos, will warn after loop
+        warn "  Package '$pkg' not found in repos — skipping."
     else
         _to_install+=("$pkg")
     fi
 done
+echo  # newline after progress bar
 
 if [[ ${#_to_install[@]} -gt 0 ]]; then
-    info "Installing ${#_to_install[@]} package(s) in one pass..."
+    info "Packages to install (${#_to_install[@]}):"
+    for pkg in "${_to_install[@]}"; do
+        echo "    - $pkg"
+    done
+    echo
     if ! pacman -S --noconfirm "${_to_install[@]}"; then
         ask_on_error "Failed to install one or more packages."
     else
-        success "Installed: ${_to_install[*]}"
+        success "All packages installed successfully."
     fi
 else
     warn "No packages to install."
@@ -293,7 +308,7 @@ else
     _total=${#PACKAGES_AUR[@]}
     _count=0
     for pkg in "${PACKAGES_AUR[@]}"; do
-        (( _count++ )) || true
+        _count=$(( _count + 1 ))
         draw_progress "$_count" "$_total" "$pkg"
         if pacman -Qi "$pkg" &>/dev/null; then
             warn "'$pkg' is already installed — skipping."
