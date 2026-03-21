@@ -82,6 +82,7 @@ PACKAGES_INSTALL=(
     git
     curl
     wget
+    base
     base-devel
     kitty
     zsh
@@ -94,6 +95,9 @@ PACKAGES_INSTALL=(
     micro
     btop
     flatpak
+    fastfetch
+    ripgrep
+    jq
     # Add more packages here...
 )
 
