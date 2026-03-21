@@ -88,7 +88,7 @@ PACKAGES_INSTALL=(
     fzf
     bat
     lsd
-    mlocate
+    locate
     vlc
     firefox
     micro
@@ -132,12 +132,13 @@ PACKAGES_REMOVE=(
     gnome-logs
     totem
     malcontent
-    amberol
     gnome-connections
     evince
     gnome-tour
     epiphany
     celluloid
+    gnome-showtime
+    decibels
     # Unwanted default tools
     vim
     htop
@@ -263,18 +264,42 @@ FLATPAKS_REMOVE=(
 if ! command -v flatpak &>/dev/null; then
     warn "flatpak is not installed — skipping Flatpak removal."
 else
+    # Also catch any flatpak whose name contains these strings (case-insensitive)
+    FLATPAK_NAME_PATTERNS=( "amberol" "celluloid" )
+
+    # Build full list of installed flatpak IDs
+    _installed_flatpaks=$(flatpak list --app --columns=application 2>/dev/null || true)
+
+    _all_to_remove=()
+
+    # Match by exact app ID
     for app in "${FLATPAKS_REMOVE[@]}"; do
-        if flatpak info "$app" &>/dev/null; then
-            info "Removing Flatpak: $app"
-            if ! flatpak uninstall --noninteractive "$app"; then
-                ask_on_error "Failed to remove Flatpak '$app'."
-            else
-                success "Removed Flatpak: $app"
-            fi
+        if echo "$_installed_flatpaks" | grep -qi "^${app}$"; then
+            _all_to_remove+=("$app")
         else
-            warn "Flatpak '$app' is not installed — skipping."
+            warn "Flatpak '$app' not found — skipping."
         fi
     done
+
+    # Match by name pattern (catches renamed or differently versioned IDs)
+    for pattern in "${FLATPAK_NAME_PATTERNS[@]}"; do
+        while IFS= read -r app_id; do
+            if [[ -n "$app_id" ]] && ! printf '%s\n' "${_all_to_remove[@]}" | grep -q "^${app_id}$"; then
+                _all_to_remove+=("$app_id")
+            fi
+        done < <(echo "$_installed_flatpaks" | grep -i "$pattern" || true)
+    done
+
+    if [[ ${#_all_to_remove[@]} -gt 0 ]]; then
+        info "Removing Flatpaks: ${_all_to_remove[*]}"
+        if ! flatpak uninstall --noninteractive "${_all_to_remove[@]}"; then
+            ask_on_error "Failed to remove one or more Flatpaks."
+        else
+            success "Flatpaks removed successfully."
+        fi
+    else
+        warn "No listed Flatpaks were installed — nothing to remove."
+    fi
 fi
 
 
@@ -385,11 +410,14 @@ echo
 info "═══ Hiding unwanted desktop entries ═══"
 
 HIDDEN_ENTRIES=(
+    # Avahi (keep installed, hide from launcher)
     /usr/share/applications/avahi-discover.desktop
-    /usr/share/applications/avahi-ssh-server.desktop
-    /usr/share/applications/avahi-vnc-server.desktop
+    /usr/share/applications/bssh.desktop
+    /usr/share/applications/bvnc.desktop
+    # V4L2 (keep installed, hide from launcher)
     /usr/share/applications/qv4l2.desktop
     /usr/share/applications/qvidcap.desktop
+    # Terminal tools (keep installed, hide from launcher)
     /usr/share/applications/btop.desktop
     /usr/share/applications/micro.desktop
     /usr/share/applications/cmake-gui.desktop
