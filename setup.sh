@@ -137,7 +137,7 @@ PACKAGES_REMOVE=(
     gnome-tour
     epiphany
     celluloid
-    gnome-showtime
+    showtime
     decibels
     # Unwanted default tools
     vim
