@@ -146,7 +146,6 @@ PACKAGES_REMOVE=(
     # Unwanted default tools
     vim
     htop
-    gnome-console
     # Add more packages here...
 )
 
@@ -544,4 +543,5 @@ fi
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo
 success "═══ Setup complete! ═══"
+info "Please run on kitty pacman -Rns gnome-console"
 info "Reboot for shell changes and Flatpak installation to take effect."
