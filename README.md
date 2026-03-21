@@ -17,8 +17,8 @@ A single script that turns a fresh Arch Linux + GNOME install into a fully confi
 Clone the repo and run the script:
 
 ```bash
-git clone https://github.com/benjaamonti/arch-setup.git
-cd arch-setup
+git clone https://github.com/benjaamonti/Arch.git
+cd Arch
 chmod +x setup.sh
 sudo ./setup.sh
 ```
