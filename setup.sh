@@ -80,6 +80,7 @@ PACKAGES_INSTALL=(
     git
     curl
     wget
+    base-devel
     kitty
     zsh
     fzf
@@ -128,6 +129,16 @@ PACKAGES_REMOVE=(
     gnome-music
     gnome-logs
     totem
+    malcontent
+    amberol
+    gnome-connections
+    evince
+    gnome-tour
+    epiphany
+    celluloid
+    # Unwanted default tools
+    vim
+    htop
     # Add more packages here...
 )
 
@@ -321,6 +332,34 @@ else
         fi
     done
 fi
+
+# ── Hide unwanted desktop entries ─────────────────────────────────────────────
+echo
+info "═══ Hiding unwanted desktop entries ═══"
+
+HIDDEN_ENTRIES=(
+    /usr/share/applications/avahi-discover.desktop
+    /usr/share/applications/avahi-ssh-server.desktop
+    /usr/share/applications/avahi-vnc-server.desktop
+    /usr/share/applications/qv4l2.desktop
+    /usr/share/applications/qvidcap.desktop
+    /usr/share/applications/btop.desktop
+    /usr/share/applications/micro.desktop
+)
+
+for entry in "${HIDDEN_ENTRIES[@]}"; do
+    if [[ -f "$entry" ]]; then
+        # Append NoDisplay=true to hide from app launcher without deleting
+        if ! grep -q '^NoDisplay=true' "$entry"; then
+            echo 'NoDisplay=true' >> "$entry"
+            success "Hidden: $(basename "$entry")"
+        else
+            warn "Already hidden: $(basename "$entry")"
+        fi
+    else
+        warn "Desktop entry not found: $entry — skipping."
+    fi
+done
 
 # ── zsh setup ─────────────────────────────────────────────────────────────────
 echo
