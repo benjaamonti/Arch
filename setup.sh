@@ -146,6 +146,7 @@ PACKAGES_REMOVE=(
     # Unwanted default tools
     vim
     htop
+    gnome-console
     # Add more packages here...
 )
 
@@ -155,6 +156,7 @@ PACKAGES_AUR=(
     zsh-autosuggestions
     zsh-syntax-highlighting
     scrub
+    nautilus-open-any-terminal
     # Add more AUR packages here...
 )
 
@@ -478,6 +480,11 @@ info "Fixing ownership of ${USER_HOME}..."
 chown -R "${USERNAME}:${USERNAME}" "$USER_HOME"
 success "Ownership set for ${USER_HOME}."
 
+# ── Open in kitty option in Files ────────────────────────────────────────────
+echo
+info "═══ Setting open in kitty option in Files ═══"
+run_as_user gsettings set com.github.stunkymonkey.nautilus-open-any-terminal terminal kitty
+nautilus -q
 # ── Default media player (VLC) ───────────────────────────────────────────────
 echo
 info "═══ Setting VLC as default media player ═══"
