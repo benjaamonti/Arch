@@ -525,6 +525,62 @@ info "Fixing ownership of ${USER_HOME}..."
 chown -R "${USERNAME}:${USERNAME}" "$USER_HOME"
 success "Ownership set for ${USER_HOME}."
 
+# ── Default media player (VLC) ───────────────────────────────────────────────
+echo
+info "═══ Setting VLC as default media player ═══"
+
+if ! command -v vlc &>/dev/null; then
+    warn "VLC does not appear to be installed — skipping mime defaults."
+else
+    VIDEO_MIMES=(
+        video/mp4
+        video/x-matroska
+        video/x-mkv
+        video/webm
+        video/x-msvideo
+        video/mpeg
+        video/quicktime
+        video/x-flv
+        video/3gpp
+        video/x-ms-wmv
+        video/ogg
+        video/x-ogm+ogg
+    )
+
+    AUDIO_MIMES=(
+        audio/mpeg
+        audio/x-flac
+        audio/flac
+        audio/ogg
+        audio/x-wav
+        audio/mp4
+        audio/x-m4a
+        audio/aac
+        audio/x-ms-wma
+    )
+
+    ALL_MIMES=( "${VIDEO_MIMES[@]}" "${AUDIO_MIMES[@]}" )
+    _total=${#ALL_MIMES[@]}
+    _count=0
+    _failed=0
+
+    for mime in "${ALL_MIMES[@]}"; do
+        _count=$(( _count + 1 ))
+        draw_progress "$_count" "$_total" "$mime"
+        if ! run_as_user xdg-mime default vlc.desktop "$mime"; then
+            warn "Failed to set default for: $mime"
+            _failed=$(( _failed + 1 ))
+        fi
+    done
+    echo  # newline after progress bar
+
+    if [[ "$_failed" -eq 0 ]]; then
+        success "VLC set as default for all ${_total} media MIME types."
+    else
+        warn "VLC set as default for $(( _total - _failed ))/${_total} MIME types (${_failed} failed)."
+    fi
+fi
+
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo
 success "═══ Setup complete! ═══"
