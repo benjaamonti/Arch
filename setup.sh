@@ -56,6 +56,12 @@ run_as_user() {
     sudo -u "$USERNAME" "$@"
 }
 
+# Argument parsing
+YES_MODE=false
+for arg in "$@"; do
+    [[ "$arg" == "-y" ]] && YES_MODE=true
+done
+
 # Require root
 if [[ "$EUID" -ne 0 ]]; then
     error "Please run this script as root (e.g. sudo ./setup.sh)"
@@ -156,7 +162,20 @@ PACKAGES_AUR=(
     zsh-syntax-highlighting
     scrub
     nautilus-open-any-terminal
+    paccache-hook
+    systemd-boot-pacman-hook
+    mdcat
     # Add more AUR packages here...
+)
+
+# Flatpak apps to install
+PACKAGES_FLATPAK=(
+    com.github.tchx84.Flatseal
+    com.mattjakeman.ExtensionManager
+    org.libreoffice.LibreOffice
+    org.localsend.localsend_app
+    page.tesk.Refine
+    # Add more Flatpak app IDs here...
 )
 
 # ── Mirror directories ────────────────────────────────────────────────────────
@@ -190,8 +209,12 @@ info "═══ BlackArch repository ═══"
 if grep -q '^\[blackarch\]' /etc/pacman.conf; then
     warn "BlackArch repository is already configured — skipping."
 else
-    read -rp "$(echo -e "${YELLOW}Do you want to add the BlackArch repository? [Y/n]${RESET} ")" _blackarch_ans
-    _blackarch_ans="${_blackarch_ans:-Y}"
+    if [[ "$YES_MODE" == true ]]; then
+    _blackarch_ans="Y"
+    else
+        read -rp "$(echo -e "${YELLOW}Do you want to add the BlackArch repository? [Y/n]${RESET} ")" _blackarch_ans
+        _blackarch_ans="${_blackarch_ans:-Y}"
+    fi
 
     if [[ "$_blackarch_ans" =~ ^[Yy]$ ]]; then
         STRAP_URL="https://blackarch.org/strap.sh"
@@ -391,6 +414,50 @@ for entry in "${HIDDEN_ENTRIES[@]}"; do
     fi
 done
 
+# ── Flatpak packages ──────────────────────────────────────────────────────────
+echo
+info "═══ Installing Flatpak packages ═══"
+
+if [[ ${#PACKAGES_FLATPAK[@]} -eq 0 ]]; then
+    warn "No Flatpak packages defined — skipping."
+elif ! command -v flatpak &>/dev/null; then
+    warn "Flatpak is not installed — skipping."
+else
+    if [[ "$YES_MODE" == true ]]; then
+        _install_flatpaks="Y"
+    else
+        read -rp "$(echo -e "${YELLOW}Do you want to install Flatpak packages? [Y/n]${RESET} ")" _install_flatpaks
+        _install_flatpaks="${_install_flatpaks:-Y}"
+    fi
+
+    if [[ "$_install_flatpaks" =~ ^[Yy]$ ]]; then
+        flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+
+        _total=${#PACKAGES_FLATPAK[@]}
+        _count=0
+        _failed=0
+        for app in "${PACKAGES_FLATPAK[@]}"; do
+            _count=$(( _count + 1 ))
+            draw_progress "$_count" "$_total" "$app"
+            if flatpak list --app --columns=application | grep -q "^${app}$"; then
+                warn "'$app' is already installed — skipping."
+            elif ! flatpak install --noninteractive flathub "$app" &>/dev/null; then
+                ask_on_error "Failed to install Flatpak: '$app'."
+                _failed=$(( _failed + 1 ))
+            fi
+        done
+        echo
+
+        if [[ "$_failed" -eq 0 ]]; then
+            success "All Flatpak packages installed successfully."
+        else
+            warn "$(( _total - _failed ))/${_total} Flatpak packages installed (${_failed} failed)."
+        fi
+    else
+        warn "Skipping Flatpak package installation."
+    fi
+fi
+
 # ── zsh setup ─────────────────────────────────────────────────────────────────
 echo
 info "═══ Configuring zsh ═══"
@@ -484,6 +551,7 @@ echo
 info "═══ Setting open in kitty option in Files ═══"
 run_as_user gsettings set com.github.stunkymonkey.nautilus-open-any-terminal terminal kitty
 nautilus -q
+
 # ── Default media player (VLC) ───────────────────────────────────────────────
 echo
 info "═══ Setting VLC as default media player ═══"
