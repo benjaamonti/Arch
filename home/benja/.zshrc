@@ -106,9 +106,6 @@ source /usr/share/zsh-sudo/sudo.plugin.zsh
 
 
 # Functions
-function mkt(){
-	mkdir {nmap,content,exploits,scripts}
-}
 
 # Extract nmap information
 function extractPorts(){
