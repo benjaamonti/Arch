@@ -1,7 +1,7 @@
 # s4vitar + evilmoonpenguin config
 
 #evilmoonpenguin
-fastfetch --config /home/benja/.config/fastfetch/mini.jsonc
+fastfetch --config "${XDG_CONFIG_HOME:-$HOME/.config}/fastfetch/mini.jsonc"
 
 #search packages
 alias yayf="yay -Slq | fzf --multi --preview 'yay -Sii {1}' --preview-window=down:75% | xargs -ro yay -Sy --noconfirm --cleanafter"
