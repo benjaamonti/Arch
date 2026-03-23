@@ -287,19 +287,27 @@ _to_install=()
 _total=${#PACKAGES_INSTALL[@]}
 _count=0
 info "Checking which packages need to be installed..."
+_not_in_repos=()
 for pkg in "${PACKAGES_INSTALL[@]}"; do
     _count=$(( _count + 1 ))
     draw_progress "$_count" "$_total" "$pkg"
     if pacman -Qi "$pkg" &>/dev/null; then
-        : # already installed, skip silently
+        :
     elif ! pkg_exists_in_repos "$pkg"; then
-        : # not in repos, will warn after loop
-        warn "  Package '$pkg' not found in repos — skipping."
+        _not_in_repos+=("$pkg")
     else
         _to_install+=("$pkg")
     fi
 done
 echo  # newline after progress bar
+
+if [[ ${#_not_in_repos[@]} -gt 0 ]]; then
+    quoted=()
+    for pkg in "${_not_in_repos[@]}"; do
+        quoted+=("'$pkg'")
+    done
+    warn "Package $(IFS=', '; echo "${quoted[*]}") not found in repos — skipping."
+fi
 
 if [[ ${#_to_install[@]} -gt 0 ]]; then
     info "Packages to install (${#_to_install[@]}):"
@@ -314,6 +322,14 @@ if [[ ${#_to_install[@]} -gt 0 ]]; then
     fi
 else
     warn "No packages to install."
+fi
+
+# Ask if running on a laptop
+read -rp "Are you on a laptop? (y/n): " is_laptop
+is_laptop="${is_laptop:-Y}"
+if [[ "$is_laptop" =~ ^[Yy]$ ]]; then
+    echo "Installing power-profiles-daemon..."
+    pacman -S --noconfirm power-profiles-daemon
 fi
 
 # ── Install yay ───────────────────────────────────────────────────────────────
@@ -345,7 +361,7 @@ else
             rm -rf "$YAY_BUILD_DIR"
         fi
     fi
-
+    
     rm -f "$SUDOERS_TMP"
 fi
 
@@ -376,7 +392,8 @@ else
             fi
         fi
     done
-
+    echo
+    
     # Remove the temporary NOPASSWD rule
     rm -f "$SUDOERS_TMP"
     success "Sudo password requirement restored."
@@ -493,11 +510,6 @@ else
 fi
 
 info "Symlinking ${USER_HOME}/.zshrc → /root/.zshrc..."
-if [[ -f "/root/.zshrc" && ! -L "/root/.zshrc" ]]; then
-    backup="/root/.zshrc.bak_$(date +%Y%m%d_%H%M%S)"
-    warn "Backing up existing /root/.zshrc → $backup"
-    mv /root/.zshrc "$backup"
-fi
 
 if ! ln -sf "${USER_HOME}/.zshrc" /root/.zshrc; then
     ask_on_error "Failed to symlink .zshrc for root."
@@ -527,13 +539,7 @@ for entry in "${MIRROR_DIRS[@]}"; do
         dst_dir="$(dirname "$dst")"
 
         mkdir -p "$dst_dir"
-
-        if [[ -e "$dst" && ! -L "$dst" ]]; then
-            backup="${dst}.bak_$(date +%Y%m%d_%H%M%S)"
-            warn "Backing up '${dst}' → '${backup}'"
-            cp -a "$dst" "$backup"
-        fi
-
+        
         if ! cp -a "$file" "$dst"; then
             ask_on_error "Failed to copy '${file}' → '${dst}'."
         else
@@ -550,7 +556,7 @@ success "Ownership set for ${USER_HOME}."
 echo
 info "═══ Setting open in kitty option in Files ═══"
 run_as_user gsettings set com.github.stunkymonkey.nautilus-open-any-terminal terminal kitty
-nautilus -q
+run_as_user nautilus -q
 
 # ── Default media player (VLC) ───────────────────────────────────────────────
 echo
