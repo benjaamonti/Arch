@@ -564,9 +564,12 @@ run_as_user env \
     XDG_RUNTIME_DIR="/run/user/${_uid}" \
     gsettings set com.github.stunkymonkey.nautilus-open-any-terminal terminal kitty
 
-# run_as_user gsettings set com.github.stunkymonkey.nautilus-open-any-terminal terminal kitty
-# run_as_user nautilus -q
-nautilus -q
+run_as_user env \
+    DBUS_SESSION_BUS_ADDRESS="$_bus" \
+    XDG_RUNTIME_DIR="/run/user/${_uid}" \
+    DISPLAY="${DISPLAY:-:0}" \
+    WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}" \
+    nautilus -q
 
 # ── Default media player (VLC) ───────────────────────────────────────────────
 echo
