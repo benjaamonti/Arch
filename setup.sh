@@ -104,6 +104,7 @@ PACKAGES_INSTALL=(
     fastfetch
     ripgrep
     jq
+    vlc-plugins-all
     # Add more packages here...
 )
 
