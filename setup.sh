@@ -632,4 +632,17 @@ fi
 echo
 success "═══ Setup complete! ═══"
 info "Please run on kitty pacman -Rns gnome-console"
-info "Reboot for shell changes and Flatpak installation to take effect."
+
+if [[ "$YES_MODE" == true ]]; then
+    _reboot_ans="Y"
+else
+    read -rp "$(echo -e "${YELLOW}Do you want to reboot now? [y/N]${RESET} ")" _reboot_ans
+    _reboot_ans="${_reboot_ans:-N}"
+fi
+
+if [[ "$_reboot_ans" =~ ^[Yy]$ ]]; then
+    info "Rebooting system..."
+    reboot
+else
+    info "You chose not to reboot. Please reboot later for shell changes and Flatpak installation to take effect."
+fi
