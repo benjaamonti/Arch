@@ -555,8 +555,18 @@ success "Ownership set for ${USER_HOME}."
 # ── Open in kitty option in Files ────────────────────────────────────────────
 echo
 info "═══ Setting open in kitty option in Files ═══"
-run_as_user gsettings set com.github.stunkymonkey.nautilus-open-any-terminal terminal kitty
-run_as_user nautilus -q
+
+_uid=$(id -u "$USERNAME")
+_bus="unix:path=/run/user/${_uid}/bus"
+
+run_as_user env \
+    DBUS_SESSION_BUS_ADDRESS="$_bus" \
+    XDG_RUNTIME_DIR="/run/user/${_uid}" \
+    gsettings set com.github.stunkymonkey.nautilus-open-any-terminal terminal kitty
+
+# run_as_user gsettings set com.github.stunkymonkey.nautilus-open-any-terminal terminal kitty
+# run_as_user nautilus -q
+nautilus -q
 
 # ── Default media player (VLC) ───────────────────────────────────────────────
 echo
