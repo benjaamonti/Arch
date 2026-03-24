@@ -95,7 +95,7 @@ PACKAGES_INSTALL=(
     fzf
     bat
     lsd
-    locate
+    plocate
     vlc
     firefox
     micro
