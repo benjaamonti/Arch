@@ -105,6 +105,7 @@ PACKAGES_INSTALL=(
     ripgrep
     jq
     vlc-plugins-all
+    man-db
     # Add more packages here...
 )
 
