@@ -3,6 +3,9 @@
 #evilmoonpenguin
 fastfetch --config "${XDG_CONFIG_HOME:-$HOME/.config}/fastfetch/mini.jsonc"
 
+#fix sudo with alias
+alias sudo='sudo '
+
 #search packages
 alias yayf="yay -Slq | fzf --multi --preview 'yay -Sii {1}' --preview-window=down:75% | xargs -ro yay -Sy --noconfirm --cleanafter"
 alias flatf="flatpak search . --columns=application,name | fzf --with-nth=2.. | awk '{print $1}' | xargs flatpak install -y"
